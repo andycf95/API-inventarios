@@ -1,0 +1,314 @@
+<!doctype html>
+<html lang="es">
+    <head>
+        <meta charset="UTF-8" />
+        <title>Inventario de Items + API + Nodejs</title>
+        <style>
+        *,
+        *::before,
+        *::after {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+        body {
+            font-family: system-ui, sans-serif;
+            background: #0f1117;
+            color: #e8eaf0;
+            padding: 2rem;
+            max-width: 900px;
+            margin: auto;
+        }
+        h1 {
+            font-size: 1.4rem;
+            margin-bottom: 1.5rem;
+            color: #4FC3F7;
+        }
+        h2 {
+            font-size: 0.9rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: #ffff;
+            margin-bottom: 0.75rem;
+        }
+        form {
+            background: #1a1e2e;
+            border: 1px solid #2d3748;
+            border-radius: 10px;
+            padding: 1.25rem;
+            margin-bottom: 1.5rem;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.75rem;
+            align-items: flex-end;
+        }
+        #form-titulo {
+            width: 100%;
+            font-size: 13px;
+            font-weight: 600;
+            color: #4FC3F7;
+        }
+        label {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            font-size: 12px;
+            color: #a0aec0;
+            flex: 1;
+            min-width: 130px;
+        }
+        input[type="text"],
+        input[type="number"] {
+            background: #0f1117;
+            border: 1px solid #2d3748;
+            border-radius: 6px;
+            padding: 0.45rem 0.65rem;
+            font-size: 14px;
+            color: #e8eaf0;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+        input:focus {
+            border-color: #68d391;
+        }
+        .btn {
+            padding: 0.5rem 1.1rem;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: 500;
+            transition: opacity 0.15s;
+        }
+        .btn:hover {
+            opacity: 0.8;
+        }
+        .btn-primary {
+            background: #276749;
+            color: #c6f6d5;
+        }
+        .btn-cancel {
+            background: #2d3748;
+            color: #a0aec0;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            background: #1a1e2e;
+            border-radius: 10px;
+            overflow: hidden;
+        }
+        th {
+            background: #1f2940;
+            color: #4FC3F7;
+            font-size: 12px;
+            font-weight: 500;
+            padding: 0.6rem 1rem;
+            text-align: left;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        td {
+            padding: 0.6rem 1rem;
+            font-size: 13px;
+            border-bottom: 1px solid #2d3748;
+            color: #cbd5e0;
+        }
+        tr:last-child td {
+            border-bottom: none;
+        }
+        tr:hover td {
+            background: #202536;
+        }
+        .badge-id {
+            font-family: monospace;
+            font-size: 11px;
+            color: #718096;
+        }
+        .btn-edit {
+            background: #1e3a5f;
+            color: #63b3ed;
+            border: none;
+            border-radius: 5px;
+            padding: 0.3rem 0.7rem;
+            cursor: pointer;
+            font-size: 12px;
+            margin-right: 4px;
+        }
+        .btn-delete {
+            background: #4a1e2e;
+            color: #fc8181;
+            border: none;
+            border-radius: 5px;
+            padding: 0.3rem 0.7rem;
+            cursor: pointer;
+            font-size: 12px;
+        }
+        #msg {
+            min-height: 22px;
+            margin-bottom: 1rem;
+            font-size: 13px;
+            font-weight: 500;
+        }
+        .ok {
+            color: #68d391;
+        }
+        .err {
+            color: #fc8181;
+        }
+        </style>
+    </head>
+    <body>
+        <h1>Inventario de Items</h1>
+        <p id="msg"></p>
+        <form id="item-form">
+        <div id="form-titulo">Nuevo item</div>
+        <input type="hidden" id="item-id" />
+        <label
+            >Nombre
+            <input type="text" id="nombre" placeholder="ej: Laptop" required
+        /></label>
+        <label
+            >Precio
+            <input
+            type="number"
+            id="precio"
+            step="0.01"
+            min="0"
+            placeholder="ej: 999.99"
+            required
+        /></label>
+        <label
+            >Stock
+            <input type="number" id="stock" min="0" placeholder="ej: 10" required
+        /></label>
+        <button type="submit" class="btn btn-primary" id="btn-submit">
+            Guardar
+        </button>
+        <button
+            type="button"
+            class="btn btn-cancel"
+            id="btn-cancel"
+            style="display: none"
+            onclick="resetForm()"
+        >
+            Cancelar
+        </button>
+        </form>
+        <h2>Lista de items</h2>
+        <table>
+        <thead>
+            <tr>
+            <th>ID</th>
+            <th>Nombre</th>
+            <th>Precio</th>
+            <th>Stock</th>
+            <th>Creado</th>
+            <th>Acciones</th>
+            </tr>
+        </thead>
+        <tbody id="tabla-body">
+            <tr>
+            <td
+                colspan="6"
+                style="text-align: center; color: #718096; padding: 1rem"
+            >
+                Cargando…
+            </td>
+            </tr>
+        </tbody>
+        </table>
+        <script>
+        const API = "http://localhost:5100/api/items";
+        const msg = (text, tipo = "ok") => {
+            const el = document.getElementById("msg");
+            el.textContent = text;
+            el.className = tipo;
+            setTimeout(() => (el.textContent = ""), 3000);
+        };
+        const fecha = (iso) =>
+            new Date(iso).toLocaleDateString("es-CO", {
+            day: "2-digit",
+            month: "short",
+            year: "numeric",
+            });
+        async function listar() {
+            try {
+            const json = await fetch(API).then((r) => r.json());
+            const tbody = document.getElementById("tabla-body");
+            if (!json.ok || !json.data.length) {
+                tbody.innerHTML = `<tr><td colspan="6" style="text-align:center;color:#718096;padding:1rem">Sin registros</td></tr>`;
+                return;
+            }
+            tbody.innerHTML = json.data
+                .map(
+                (item) => `<tr>
+            <td class="badge-id">${item._id.slice(-6)}</td>
+            <td>${item.nombre}</td><td>$${item.precio.toFixed(2)}</td><td>${item.stock}</td><td>${fecha(item.createdAt)}</td>
+            <td>
+                <button class="btn-edit" onclick='editarItem(${JSON.stringify(item)})'>Editar</button>
+                <button class="btn-delete" onclick="eliminarItem('${item._id}')">Borrar</button>
+            </td></tr>`,
+                )
+                .join("");
+            } catch {
+            msg("No se pudo conectar con la API", "err");
+            }
+        }
+        document
+            .getElementById("item-form")
+            .addEventListener("submit", async (e) => {
+            e.preventDefault();
+            const id = document.getElementById("item-id").value;
+            const body = {
+                nombre: document.getElementById("nombre").value,
+                precio: parseFloat(document.getElementById("precio").value),
+                stock: parseInt(document.getElementById("stock").value),
+            };
+            const res = await fetch(id ? `${API}/${id}` : API, {
+                method: id ? "PUT" : "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(body),
+            });
+            const json = await res.json();
+            if (!json.ok) {
+                msg("Error: " + (json.errores || [json.error]).join(", "), "err");
+                return;
+            }
+            msg(id ? "Item actualizado" : "Item creado");
+            resetForm();
+            listar();
+            });
+        function editarItem(item) {
+            document.getElementById("item-id").value = item._id;
+            document.getElementById("nombre").value = item.nombre;
+            document.getElementById("precio").value = item.precio;
+            document.getElementById("stock").value = item.stock;
+            document.getElementById("form-titulo").textContent =
+            `Editando: ${item.nombre}`;
+            document.getElementById("btn-submit").textContent = "Actualizar";
+            document.getElementById("btn-cancel").style.display = "inline-block";
+        }
+        async function eliminarItem(id) {
+            if (!confirm("¿Eliminar este item?")) return;
+            const json = await fetch(`${API}/${id}`, { method: "DELETE" }).then(
+            (r) => r.json(),
+            );
+            if (!json.ok) {
+            msg("Error: " + json.error, "err");
+            return;
+            }
+            msg("Item eliminado");
+            listar();
+        }
+        function resetForm() {
+            document.getElementById("item-form").reset();
+            document.getElementById("item-id").value = "";
+            document.getElementById("form-titulo").textContent = "Nuevo item";
+            document.getElementById("btn-submit").textContent = "Guardar";
+            document.getElementById("btn-cancel").style.display = "none";
+        }
+        listar();
+        </script>
+    </body>
+    </html>

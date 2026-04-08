@@ -72,7 +72,20 @@ export const updateItem = async (req, res) => {
 
 // ──  Eliminar 
 export const deleteItem = async (req, res) => {
-  const item = await Item.findByIdAndDelete(req.params.id);
-  if (!item) return res.status(404).json({ ok: false, error: 'No encontrado' });
-  res.json({ ok: true, mensaje: 'Item eliminado' });
+  try {
+    const item = await Item.findByIdAndUpdate(
+      req.params.id,
+      { activo: false },
+      { new: true }
+    );
+    if (!item) {
+      return res.status(404).json({ ok: false, error: 'Item no encontrado' });
+    }
+    res.json({ ok: true, mensaje: 'Item eliminado correctamente' });
+  } catch (error) {
+    if (error.name === 'CastError') {
+      return res.status(400).json({ ok: false, error: 'ID con formato inválido' });
+    }
+    res.status(500).json({ ok: false, error: 'Error al eliminar el item' });
+  }
 };
